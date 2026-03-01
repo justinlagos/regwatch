@@ -4,6 +4,9 @@ import { getServiceClient, json, logEvent } from "../_shared/supabase.ts";
 const IMPACT_LABELS: Record<string, string> = { "1": "Informational", "2": "Low", "3": "Medium", "4": "High" };
 const IMPACT_COLORS: Record<string, string> = { "1": "#6b7280", "2": "#2563eb", "3": "#d97706", "4": "#dc2626" };
 
+// Resend free tier: send from onboarding@resend.dev (shared domain for unverified accounts)
+const RESEND_FROM = "RegWatch <onboarding@resend.dev>";
+
 async function sendEmail(to: string[], subject: string, html: string): Promise<void> {
   const resp = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -11,7 +14,7 @@ async function sendEmail(to: string[], subject: string, html: string): Promise<v
       Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY")}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: Deno.env.get("RESEND_FROM_EMAIL"), to, subject, html }),
+    body: JSON.stringify({ from: RESEND_FROM, to, subject, html }),
   });
   if (!resp.ok) throw new Error(`Resend error ${resp.status}: ${await resp.text()}`);
 }
@@ -96,40 +99,32 @@ Deno.serve(async (req: Request) => {
 
     const minLevel = config.email_digest_min_level || "2";
 
-    // Get new items from the past week above min level
+    // Fetch items WITH classifications in a single JOIN query (avoids N+1 problem)
     const { data: items } = await supabase
       .from("items")
-      .select("*")
+      .select("*, classifications(*)")
       .eq("workspace_id", config.workspace_id)
       .eq("state", "classified")
       .gte("detected_at", weekAgo)
-      .order("detected_at", { ascending: false });
+      .order("detected_at", { ascending: false })
+      .limit(200); // Cap at 200 items per digest to avoid huge emails
 
     if (!items || items.length === 0) continue;
 
-    // Fetch classifications and filter by impact level
-    const itemsWithClassification: Array<{ item: Record<string, unknown>; classification: Record<string, unknown> }> = [];
-
-    for (const item of items) {
-      const { data: cls } = await supabase
-        .from("classifications")
-        .select("*")
-        .eq("item_id", item.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (cls && parseInt(cls.impact_level) >= parseInt(minLevel)) {
-        itemsWithClassification.push({ item, classification: cls });
-      }
-    }
+    // Filter by min impact level and shape data
+    const itemsWithClassification = items
+      .map((item) => {
+        const cls = (item.classifications as Record<string, unknown>[])?.[0];
+        return cls ? { item, classification: cls } : null;
+      })
+      .filter((entry): entry is { item: Record<string, unknown>; classification: Record<string, unknown> } =>
+        entry !== null && parseInt(entry.classification.impact_level as string) >= parseInt(minLevel)
+      )
+      .sort((a, b) =>
+        parseInt(b.classification.impact_level as string) - parseInt(a.classification.impact_level as string)
+      );
 
     if (itemsWithClassification.length === 0) continue;
-
-    // Sort by impact level desc
-    itemsWithClassification.sort((a, b) =>
-      parseInt(b.classification.impact_level as string) - parseInt(a.classification.impact_level as string)
-    );
 
     try {
       const periodLabel = `Week of ${new Date(weekAgo).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`;

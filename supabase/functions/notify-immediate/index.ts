@@ -8,17 +8,29 @@ const IMPACT_LABELS: Record<string, string> = {
   "4": "High — Action Required",
 };
 
-async function sendEmail(to: string[], subject: string, html: string): Promise<void> {
+// Resend free tier: must send from onboarding@resend.dev or a verified custom domain
+// Using onboarding@resend.dev as the shared sender for unverified accounts
+const RESEND_FROM = "RegWatch <onboarding@resend.dev>";
+
+async function sendEmailWithRetry(to: string[], subject: string, html: string, maxRetries = 3): Promise<void> {
   const apiKey = Deno.env.get("RESEND_API_KEY")!;
-  const from = Deno.env.get("RESEND_FROM_EMAIL")!;
 
-  const resp = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to, subject, html }),
-  });
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const resp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: RESEND_FROM, to, subject, html }),
+    });
 
-  if (!resp.ok) {
+    if (resp.ok) return;
+
+    if (resp.status === 429 && attempt < maxRetries - 1) {
+      // Rate limited — wait with exponential backoff: 1s, 2s, 4s
+      const delay = Math.pow(2, attempt) * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      continue;
+    }
+
     const err = await resp.text();
     throw new Error(`Resend error ${resp.status}: ${err}`);
   }
@@ -104,7 +116,7 @@ Deno.serve(async (req: Request) => {
     const subject = `[RegWatch] Impact Level ${classification.impact_level} Alert: ${item.title?.slice(0, 60) || "New Item"}`;
     const html = buildEmailHtml(item, classification, appUrl);
 
-    await sendEmail(recipients, subject, html);
+    await sendEmailWithRetry(recipients, subject, html);
 
     await supabase.from("notification_log").insert({
       workspace_id: item.workspace_id,

@@ -1,13 +1,39 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import Link from 'next/link'
+import { getServerClient } from '@/lib/supabase'
 
 export const metadata: Metadata = {
   title: 'RegWatch',
   description: 'Regulatory Intelligence Monitoring',
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+async function getPendingReviewCount() {
+  try {
+    const sb = getServerClient()
+    const { data: reviewed } = await sb
+      .from('item_reviews')
+      .select('item_id')
+      .eq('workspace_id', '00000000-0000-0000-0000-000000000001')
+
+    const reviewedIds = (reviewed || []).map((r: any) => r.item_id)
+
+    const { data: highImpactIds } = await sb
+      .from('classifications')
+      .select('item_id')
+      .in('impact_level', ['3', '4'])
+
+    const allHighIds = (highImpactIds || []).map((r: any) => r.item_id)
+    const pending = allHighIds.filter((id: string) => !reviewedIds.includes(id))
+    return pending.length
+  } catch {
+    return 0
+  }
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const pendingCount = await getPendingReviewCount()
+
   return (
     <html lang="en">
       <body className="bg-gray-50 min-h-screen">
@@ -21,8 +47,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="flex gap-3 sm:gap-6 text-sm text-slate-300">
                 <Link href="/" className="hover:text-white transition-colors">Dashboard</Link>
                 <Link href="/items" className="hover:text-white transition-colors">Items</Link>
-                <Link href="/items?level=4" className="hover:text-white transition-colors whitespace-nowrap">
+                <Link href="/items?level=4" className="hover:text-white transition-colors whitespace-nowrap hidden sm:inline">
                   High Impact
+                </Link>
+                <Link href="/review" className="hover:text-white transition-colors flex items-center gap-1.5 whitespace-nowrap">
+                  Review
+                  {pendingCount > 0 && (
+                    <span className="bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5 leading-none">
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )}
                 </Link>
               </div>
             </div>

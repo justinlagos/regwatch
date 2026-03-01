@@ -1,27 +1,36 @@
 import { getServerClient, IMPACT_LABELS, IMPACT_COLORS, IMPACT_BORDER } from '@/lib/supabase'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import ReviewActions from './ReviewActions'
 
 interface Props { params: { id: string } }
 
 export default async function ItemDetail({ params }: Props) {
   const sb = getServerClient()
 
-  const { data: item } = await sb
-    .from('items')
-    .select(`
-      *,
-      sources(name, url, source_type, jurisdiction, kind),
-      classifications(*)
-    `)
-    .eq('id', params.id)
-    .single()
+  const [{ data: item }, ] = await Promise.all([
+    sb.from('items')
+      .select(`*, sources(name, url, source_type, jurisdiction, kind), classifications(*)`)
+      .eq('id', params.id)
+      .single(),
+  ])
 
   if (!item) notFound()
 
   const cls = (item.classifications as any[])?.[0]
   const src = item.sources as any
   const level = cls?.impact_level
+
+  // Fetch existing review for this item
+  const { data: review } = await sb
+    .from('item_reviews')
+    .select('status, notes, reviewed_by, reviewed_at')
+    .eq('item_id', params.id)
+    .eq('workspace_id', '00000000-0000-0000-0000-000000000001')
+    .maybeSingle()
+
+  const isoClauses: { code: string; name: string }[]   = cls?.iso_clauses   || []
+  const nistControls: { code: string; name: string }[] = cls?.nist_controls || []
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -60,6 +69,50 @@ export default async function ItemDetail({ params }: Props) {
 
       {cls ? (
         <>
+          {/* Review Actions — primary CTA */}
+          <ReviewActions itemId={params.id} currentReview={review} />
+
+          {/* ISO 27001 + NIST clause mapping — prominent */}
+          {(isoClauses.length > 0 || nistControls.length > 0) && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Control Mapping</h2>
+              <div className="grid sm:grid-cols-2 gap-6">
+                {isoClauses.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-purple-700 mb-2 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-500 inline-block"></span>
+                      ISO 27001:2022 Clauses
+                    </p>
+                    <div className="space-y-1.5">
+                      {isoClauses.map((c: { code: string; name: string }) => (
+                        <div key={c.code} className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded shrink-0">{c.code}</span>
+                          <span className="text-xs text-slate-600">{c.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {nistControls.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-blue-700 mb-2 flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                      NIST CSF 2.0 Controls
+                    </p>
+                    <div className="space-y-1.5">
+                      {nistControls.map((c: { code: string; name: string }) => (
+                        <div key={c.code} className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded shrink-0">{c.code}</span>
+                          <span className="text-xs text-slate-600">{c.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Impact rationale */}
           {cls.impact_rationale && (
             <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
@@ -99,52 +152,54 @@ export default async function ItemDetail({ params }: Props) {
             )}
           </div>
 
-          {/* Frameworks */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Framework Mappings</h2>
-            <div className="grid sm:grid-cols-2 gap-6">
-              {cls.iso_domains?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-2">ISO Domains</p>
-                  <div className="flex flex-wrap gap-2">
-                    {cls.iso_domains.map((d: string) => (
-                      <span key={d} className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium">{d}</span>
-                    ))}
+          {/* Framework tag cloud */}
+          {(cls.iso_domains?.length > 0 || cls.iso_tags?.length > 0 || cls.nist_csf_functions?.length > 0 || cls.nist_800_53_families?.length > 0) && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">Full Framework Mappings</h2>
+              <div className="grid sm:grid-cols-2 gap-6">
+                {cls.iso_domains?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 mb-2">ISO Domains</p>
+                    <div className="flex flex-wrap gap-2">
+                      {cls.iso_domains.map((d: string) => (
+                        <span key={d} className="px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium">{d}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              {cls.iso_tags?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-2">ISO Tags</p>
-                  <div className="flex flex-wrap gap-2">
-                    {cls.iso_tags.map((t: string) => (
-                      <span key={t} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium">{t}</span>
-                    ))}
+                )}
+                {cls.iso_tags?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 mb-2">ISO Tags</p>
+                    <div className="flex flex-wrap gap-2">
+                      {cls.iso_tags.map((t: string) => (
+                        <span key={t} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-medium">{t}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              {cls.nist_csf_functions?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-2">NIST CSF Functions</p>
-                  <div className="flex flex-wrap gap-2">
-                    {cls.nist_csf_functions.map((f: string) => (
-                      <span key={f} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">{f}</span>
-                    ))}
+                )}
+                {cls.nist_csf_functions?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 mb-2">NIST CSF Functions</p>
+                    <div className="flex flex-wrap gap-2">
+                      {cls.nist_csf_functions.map((f: string) => (
+                        <span key={f} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium">{f}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              {cls.nist_800_53_families?.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 mb-2">NIST 800-53 Families</p>
-                  <div className="flex flex-wrap gap-2">
-                    {cls.nist_800_53_families.map((f: string) => (
-                      <span key={f} className="px-2 py-1 bg-cyan-50 text-cyan-700 rounded-md text-xs font-medium">{f}</span>
-                    ))}
+                )}
+                {cls.nist_800_53_families?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 mb-2">NIST 800-53 Families</p>
+                    <div className="flex flex-wrap gap-2">
+                      {cls.nist_800_53_families.map((f: string) => (
+                        <span key={f} className="px-2 py-1 bg-cyan-50 text-cyan-700 rounded-md text-xs font-medium">{f}</span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 shadow-sm">

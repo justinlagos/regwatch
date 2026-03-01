@@ -6,6 +6,10 @@ export const revalidate = 60
 async function getStats() {
   const sb = getServerClient()
 
+  const now = new Date()
+  const weekAgo  = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7)
+  const twoWeeksAgo = new Date(now); twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+
   const [
     { count: total },
     { count: classified },
@@ -13,6 +17,9 @@ async function getStats() {
     { count: level4 },
     { data: sources },
     { data: recent },
+    { count: thisWeekHigh },
+    { count: lastWeekHigh },
+    { count: pendingReview },
   ] = await Promise.all([
     sb.from('items').select('*', { count: 'exact', head: true }),
     sb.from('items').select('*', { count: 'exact', head: true }).eq('state', 'classified'),
@@ -24,6 +31,25 @@ async function getStats() {
       .eq('state', 'classified')
       .order('detected_at', { ascending: false })
       .limit(10),
+    // Velocity: L3+L4 this week
+    sb.from('items')
+      .select('id', { count: 'exact', head: true })
+      .eq('state', 'classified')
+      .gte('detected_at', weekAgo.toISOString())
+      .in('id', (await sb.from('classifications').select('item_id').in('impact_level', ['3','4'])).data?.map((r:any) => r.item_id) || []),
+    // Velocity: L3+L4 last week
+    sb.from('items')
+      .select('id', { count: 'exact', head: true })
+      .eq('state', 'classified')
+      .gte('detected_at', twoWeeksAgo.toISOString())
+      .lt('detected_at', weekAgo.toISOString())
+      .in('id', (await sb.from('classifications').select('item_id').in('impact_level', ['3','4'])).data?.map((r:any) => r.item_id) || []),
+    // Pending review: L3+L4 not yet reviewed
+    sb.from('items')
+      .select('id', { count: 'exact', head: true })
+      .eq('state', 'classified')
+      .not('id', 'in', `(${(await sb.from('item_reviews').select('item_id').eq('workspace_id','00000000-0000-0000-0000-000000000001')).data?.map((r:any) => r.item_id).join(',') || 'null'})`)
+      .in('id', (await sb.from('classifications').select('item_id').in('impact_level', ['3','4'])).data?.map((r:any) => r.item_id) || []),
   ])
 
   const { data: levelBreakdown } = await sb
@@ -35,17 +61,35 @@ async function getStats() {
     levels[row.impact_level] = (levels[row.impact_level] || 0) + 1
   }
 
-  return { total, classified, failed, level4, sources, recent, levels }
+  // Velocity score: % change in high-impact items week over week
+  const thisW  = thisWeekHigh ?? 0
+  const lastW  = lastWeekHigh ?? 0
+  const velocityPct = lastW === 0 ? 0 : Math.round(((thisW - lastW) / lastW) * 100)
+  const velocityTrend: 'up' | 'down' | 'flat' = velocityPct > 10 ? 'up' : velocityPct < -10 ? 'down' : 'flat'
+
+  return { total, classified, failed, level4, sources, recent, levels,
+           thisWeekHigh: thisW, lastWeekHigh: lastW, velocityPct, velocityTrend,
+           pendingReview: pendingReview ?? 0 }
+}
+
+const VELOCITY_CONFIG = {
+  up:   { label: 'Rising',  icon: '↑', color: 'text-red-600',   bg: 'bg-red-50 border-red-100',   tip: 'High-impact signals increasing week-over-week' },
+  down: { label: 'Easing',  icon: '↓', color: 'text-green-600', bg: 'bg-green-50 border-green-100', tip: 'High-impact signals decreasing week-over-week' },
+  flat: { label: 'Steady',  icon: '→', color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', tip: 'Threat landscape stable week-over-week' },
 }
 
 export default async function Dashboard() {
-  const { total, classified, failed, level4, sources, recent, levels } = await getStats()
+  const { total, classified, failed, level4, sources, recent, levels,
+          thisWeekHigh, lastWeekHigh, velocityPct, velocityTrend,
+          pendingReview } = await getStats()
+
+  const vel = VELOCITY_CONFIG[velocityTrend]
 
   const statCards = [
-    { label: 'Total Items', value: total ?? 0, color: 'text-slate-800' },
-    { label: 'Classified', value: classified ?? 0, color: 'text-green-700' },
-    { label: 'High Impact (L4)', value: level4 ?? 0, color: 'text-red-600' },
-    { label: 'Failed', value: failed ?? 0, color: 'text-orange-600' },
+    { label: 'Total Items',      value: total ?? 0,      color: 'text-slate-800' },
+    { label: 'Classified',       value: classified ?? 0,  color: 'text-green-700' },
+    { label: 'High Impact (L4)', value: level4 ?? 0,      color: 'text-red-600' },
+    { label: 'Failed',           value: failed ?? 0,      color: 'text-orange-600' },
   ]
 
   return (
@@ -66,7 +110,56 @@ export default async function Dashboard() {
         ))}
       </div>
 
-      {/* Impact breakdown — 2 cols on mobile, 4 on desktop */}
+      {/* Velocity + Review row */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        {/* Velocity Score */}
+        <div className={`rounded-xl border p-5 shadow-sm ${vel.bg}`}>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Regulatory Velocity</p>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className={`text-3xl font-black ${vel.color}`}>
+                  {vel.icon} {Math.abs(velocityPct)}%
+                </span>
+                <span className={`text-sm font-semibold ${vel.color}`}>{vel.label}</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">{vel.tip}</p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-xs text-gray-400">This week</p>
+              <p className="text-lg font-bold text-slate-700">{thisWeekHigh}</p>
+              <p className="text-xs text-gray-400 mt-1">Last week</p>
+              <p className="text-sm font-semibold text-slate-500">{lastWeekHigh}</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-3">L3 + L4 signals, 7-day rolling window</p>
+        </div>
+
+        {/* Review Queue CTA */}
+        <Link href="/review" className="block group">
+          <div className={`rounded-xl border p-5 shadow-sm h-full transition-shadow hover:shadow-md ${
+            pendingReview > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-100'
+          }`}>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Review Queue</p>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className={`text-3xl font-black ${pendingReview > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {pendingReview}
+              </span>
+              <span className={`text-sm font-semibold ${pendingReview > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {pendingReview > 0 ? 'items need action' : 'all clear'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {pendingReview > 0
+                ? 'L3 + L4 items awaiting your review'
+                : 'All high-impact items have been reviewed'}
+            </p>
+            <p className="text-xs text-blue-600 mt-3 group-hover:underline">Open review queue →</p>
+          </div>
+        </Link>
+      </div>
+
+      {/* Impact breakdown */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
         <h2 className="font-semibold text-slate-800 mb-3 sm:mb-4">Impact Level Breakdown</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">

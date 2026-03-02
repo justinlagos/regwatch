@@ -10,6 +10,14 @@ async function getStats() {
   const weekAgo  = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7)
   const twoWeeksAgo = new Date(now); twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
 
+  // Pre-fetch shared sub-queries to avoid repetition
+  const [high34Ids, reviewedIds] = await Promise.all([
+    sb.from('classifications').select('item_id').in('impact_level', ['3','4']),
+    sb.from('item_reviews').select('item_id').eq('workspace_id','00000000-0000-0000-0000-000000000001'),
+  ])
+  const h34 = high34Ids.data?.map((r:any) => r.item_id) || []
+  const revd = reviewedIds.data?.map((r:any) => r.item_id) || []
+
   const [
     { count: total },
     { count: classified },
@@ -20,6 +28,8 @@ async function getStats() {
     { count: thisWeekHigh },
     { count: lastWeekHigh },
     { count: pendingReview },
+    { count: lowConfidence },
+    { data: confidenceData },
   ] = await Promise.all([
     sb.from('items').select('*', { count: 'exact', head: true }),
     sb.from('items').select('*', { count: 'exact', head: true }).eq('state', 'classified'),
@@ -32,24 +42,29 @@ async function getStats() {
       .order('detected_at', { ascending: false })
       .limit(10),
     // Velocity: L3+L4 this week
-    sb.from('items')
-      .select('id', { count: 'exact', head: true })
-      .eq('state', 'classified')
-      .gte('detected_at', weekAgo.toISOString())
-      .in('id', (await sb.from('classifications').select('item_id').in('impact_level', ['3','4'])).data?.map((r:any) => r.item_id) || []),
+    h34.length
+      ? sb.from('items').select('id', { count: 'exact', head: true })
+          .eq('state', 'classified').gte('detected_at', weekAgo.toISOString()).in('id', h34)
+      : Promise.resolve({ count: 0 }),
     // Velocity: L3+L4 last week
-    sb.from('items')
-      .select('id', { count: 'exact', head: true })
-      .eq('state', 'classified')
-      .gte('detected_at', twoWeeksAgo.toISOString())
-      .lt('detected_at', weekAgo.toISOString())
-      .in('id', (await sb.from('classifications').select('item_id').in('impact_level', ['3','4'])).data?.map((r:any) => r.item_id) || []),
+    h34.length
+      ? sb.from('items').select('id', { count: 'exact', head: true })
+          .eq('state', 'classified')
+          .gte('detected_at', twoWeeksAgo.toISOString())
+          .lt('detected_at', weekAgo.toISOString())
+          .in('id', h34)
+      : Promise.resolve({ count: 0 }),
     // Pending review: L3+L4 not yet reviewed
-    sb.from('items')
-      .select('id', { count: 'exact', head: true })
-      .eq('state', 'classified')
-      .not('id', 'in', `(${(await sb.from('item_reviews').select('item_id').eq('workspace_id','00000000-0000-0000-0000-000000000001')).data?.map((r:any) => r.item_id).join(',') || 'null'})`)
-      .in('id', (await sb.from('classifications').select('item_id').in('impact_level', ['3','4'])).data?.map((r:any) => r.item_id) || []),
+    h34.length
+      ? sb.from('items').select('id', { count: 'exact', head: true })
+          .eq('state', 'classified')
+          .not('id', 'in', `(${revd.join(',') || 'null'})`)
+          .in('id', h34)
+      : Promise.resolve({ count: 0 }),
+    // Low confidence: classified items with confidence_score < 65
+    sb.from('classifications').select('*', { count: 'exact', head: true }).lt('confidence_score', 65),
+    // Average confidence score
+    sb.from('classifications').select('confidence_score').not('confidence_score', 'is', null).limit(1000),
   ])
 
   const { data: levelBreakdown } = await sb
@@ -61,6 +76,10 @@ async function getStats() {
     levels[row.impact_level] = (levels[row.impact_level] || 0) + 1
   }
 
+  // Average confidence
+  const scores = (confidenceData || []).map((r: any) => r.confidence_score).filter(Boolean)
+  const avgConfidence = scores.length ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : null
+
   // Velocity score: % change in high-impact items week over week
   const thisW  = thisWeekHigh ?? 0
   const lastW  = lastWeekHigh ?? 0
@@ -69,7 +88,9 @@ async function getStats() {
 
   return { total, classified, failed, level4, sources, recent, levels,
            thisWeekHigh: thisW, lastWeekHigh: lastW, velocityPct, velocityTrend,
-           pendingReview: pendingReview ?? 0 }
+           pendingReview: pendingReview ?? 0,
+           lowConfidence: lowConfidence ?? 0,
+           avgConfidence }
 }
 
 const VELOCITY_CONFIG = {
@@ -81,7 +102,7 @@ const VELOCITY_CONFIG = {
 export default async function Dashboard() {
   const { total, classified, failed, level4, sources, recent, levels,
           thisWeekHigh, lastWeekHigh, velocityPct, velocityTrend,
-          pendingReview } = await getStats()
+          pendingReview, lowConfidence, avgConfidence } = await getStats()
 
   const vel = VELOCITY_CONFIG[velocityTrend]
 
@@ -91,6 +112,11 @@ export default async function Dashboard() {
     { label: 'High Impact (L4)', value: level4 ?? 0,      color: 'text-red-600' },
     { label: 'Failed',           value: failed ?? 0,      color: 'text-orange-600' },
   ]
+
+  const confColor = avgConfidence == null ? 'text-slate-400'
+    : avgConfidence >= 85 ? 'text-emerald-600'
+    : avgConfidence >= 65 ? 'text-amber-600'
+    : 'text-red-600'
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -155,6 +181,63 @@ export default async function Dashboard() {
                 : 'All high-impact items have been reviewed'}
             </p>
             <p className="text-xs text-blue-600 mt-3 group-hover:underline">Open review queue →</p>
+          </div>
+        </Link>
+      </div>
+
+      {/* AI Confidence + Low Confidence Alert row */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        {/* Average Confidence */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Avg AI Confidence</p>
+          <div className="flex items-baseline gap-2 mt-1">
+            <span className={`text-3xl font-black ${confColor}`}>
+              {avgConfidence != null ? `${avgConfidence}%` : '—'}
+            </span>
+            <span className="text-sm text-gray-400">
+              {avgConfidence == null ? 'no data'
+                : avgConfidence >= 85 ? 'high reliability'
+                : avgConfidence >= 65 ? 'moderate reliability'
+                : 'needs review'}
+            </span>
+          </div>
+          {avgConfidence != null && (
+            <div className="mt-3">
+              <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    avgConfidence >= 85 ? 'bg-emerald-500' : avgConfidence >= 65 ? 'bg-amber-400' : 'bg-red-400'
+                  }`}
+                  style={{ width: `${avgConfidence}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">Across all classified items</p>
+            </div>
+          )}
+        </div>
+
+        {/* Low Confidence Alert */}
+        <Link href="/review?filter=low-confidence" className="block group">
+          <div className={`rounded-xl border p-5 shadow-sm h-full transition-shadow hover:shadow-md ${
+            lowConfidence > 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'
+          }`}>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Low Confidence Items</p>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className={`text-3xl font-black ${lowConfidence > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                {lowConfidence}
+              </span>
+              <span className={`text-sm font-semibold ${lowConfidence > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                {lowConfidence === 1 ? 'item' : 'items'}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              {lowConfidence > 0
+                ? 'Classifications below 65% confidence — human review recommended'
+                : 'All classifications meet the confidence threshold'}
+            </p>
+            {lowConfidence > 0 && (
+              <p className="text-xs text-blue-600 mt-3 group-hover:underline">Review low-confidence items →</p>
+            )}
           </div>
         </Link>
       </div>

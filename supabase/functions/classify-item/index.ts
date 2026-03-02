@@ -202,6 +202,30 @@ Deno.serve(async (req: Request) => {
       }).catch(console.error);
     }
 
+    // Slack notification
+    const { data: ws } = await supabase.from("workspaces").select("slack_webhook_url, slack_notify_l4, slack_notify_l3").eq("id", item.workspace_id).single();
+    const shouldNotify = ws?.slack_webhook_url && (
+      (classification.impact_level === "4" && ws.slack_notify_l4) ||
+      (classification.impact_level === "3" && ws.slack_notify_l3)
+    );
+    if (shouldNotify) {
+      const lvl = classification.impact_level;
+      const emoji = lvl === "4" ? "🚨" : "⚠️";
+      const appUrl = Deno.env.get("NEXT_PUBLIC_APP_URL") || "https://regwatch-xi.vercel.app";
+      fetch(ws.slack_webhook_url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: `${emoji} *L${lvl} RegWatch Alert*`,
+          blocks: [
+            { type: "section", text: { type: "mrkdwn", text: `${emoji} *<${appUrl}/items/${item_id}|${item.title || "Untitled"}>*\n${classification.summary?.slice(0, 150) || ""}${(classification.summary?.length || 0) > 150 ? "…" : ""}` } },
+            { type: "context", elements: [{ type: "mrkdwn", text: `L${lvl} · ${classification.iso_clauses?.[0] || "—"} · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` }] },
+            { type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "View in RegWatch" }, url: `${appUrl}/items/${item_id}`, style: "primary" }] },
+          ],
+        }),
+      }).catch(console.error);
+    }
+
     return json({ success: true, impact_level: classification.impact_level });
 
   } catch (err) {

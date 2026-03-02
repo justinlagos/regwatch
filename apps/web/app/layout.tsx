@@ -58,9 +58,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     </span>
                   )}
                 </Link>
+                <Link href="/compliance" className="hover:text-white transition-colors hidden sm:inline">Compliance</Link>
               </div>
             </div>
-            <span className="hidden sm:block text-xs text-slate-400">Regulatory Intelligence Platform</span>
+            <Link href="/settings" className="hidden sm:block text-xs text-slate-400 hover:text-slate-200 transition-colors">⚙ Settings</Link>
           </div>
         </nav>
         <main className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">

@@ -6,6 +6,8 @@ import OverridePanel  from '@/app/components/OverridePanel'
 import ConfidenceBadge from '@/app/components/ConfidenceBadge'
 import AIDisclaimer   from '@/app/components/AIDisclaimer'
 import AuditTimeline  from '@/app/components/AuditTimeline'
+import ControlMapper  from '@/app/components/ControlMapper'
+import ItemComments   from '@/app/components/ItemComments'
 
 interface Props { params: { id: string } }
 
@@ -233,6 +235,12 @@ export default async function ItemDetail({ params }: Props) {
           No classification available for this item.
         </div>
       )}
+
+      {/* Control Mapper + Comments */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <ControlMapper itemId={params.id} />
+        <ItemComments itemId={params.id} />
+      </div>
     </div>
   )
 }

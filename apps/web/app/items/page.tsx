@@ -5,13 +5,14 @@ import FilterBar from './FilterBar'
 export const revalidate = 60
 
 interface Props {
-  searchParams: { level?: string; source?: string; page?: string }
+  searchParams: { level?: string; source?: string; page?: string; q?: string }
 }
 
 export default async function ItemsPage({ searchParams }: Props) {
   const sb = getServerClient()
   const level = searchParams.level
   const sourceFilter = searchParams.source
+  const q = searchParams.q
   const page = parseInt(searchParams.page || '1')
   const pageSize = 50
   const offset = (page - 1) * pageSize
@@ -30,6 +31,7 @@ export default async function ItemsPage({ searchParams }: Props) {
     .range(offset, offset + pageSize - 1)
 
   if (sourceFilter) query = query.eq('source_id', sourceFilter)
+  if (q) query = query.ilike('title', `%${q}%`)
 
   const { data: items, count } = await query
 
@@ -42,13 +44,17 @@ export default async function ItemsPage({ searchParams }: Props) {
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Items</h1>
-        <p className="text-slate-500 text-sm mt-1">{count?.toLocaleString()} classified items</p>
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Items</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {q ? `${count?.toLocaleString()} results for "${q}"` : `${count?.toLocaleString()} classified items`}
+          </p>
+        </div>
       </div>
 
       {/* Filter bar */}
-      <FilterBar sources={sources || []} currentLevel={level} currentSource={sourceFilter} />
+      <FilterBar sources={sources || []} currentLevel={level} currentSource={sourceFilter} currentQ={q} />
 
       {/* Desktop table — hidden on mobile */}
       <div className="hidden sm:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
@@ -132,12 +138,12 @@ export default async function ItemsPage({ searchParams }: Props) {
       {totalPages > 1 && (
         <div className="flex gap-2 justify-center">
           {page > 1 && (
-            <Link href={`/items?page=${page - 1}${level ? `&level=${level}` : ''}${sourceFilter ? `&source=${sourceFilter}` : ''}`}
+            <Link href={`/items?page=${page - 1}${level ? `&level=${level}` : ''}${sourceFilter ? `&source=${sourceFilter}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
               className="px-4 py-2 rounded-lg border border-gray-300 text-sm hover:bg-gray-50">← Prev</Link>
           )}
           <span className="px-4 py-2 text-sm text-gray-500">Page {page} of {totalPages}</span>
           {page < totalPages && (
-            <Link href={`/items?page=${page + 1}${level ? `&level=${level}` : ''}${sourceFilter ? `&source=${sourceFilter}` : ''}`}
+            <Link href={`/items?page=${page + 1}${level ? `&level=${level}` : ''}${sourceFilter ? `&source=${sourceFilter}` : ''}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
               className="px-4 py-2 rounded-lg border border-gray-300 text-sm hover:bg-gray-50">Next →</Link>
           )}
         </div>

@@ -40,7 +40,7 @@ async function getStats() {
       .select('id, title, detected_at, canonical_url, sources(name), classifications(impact_level, summary)')
       .eq('state', 'classified')
       .order('detected_at', { ascending: false })
-      .limit(10),
+      .limit(40),
     // Velocity: L3+L4 this week
     h34.length
       ? sb.from('items').select('id', { count: 'exact', head: true })
@@ -99,10 +99,14 @@ const VELOCITY_CONFIG = {
   flat: { label: 'Steady',  icon: '→', color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', tip: 'Threat landscape stable week-over-week' },
 }
 
-export default async function Dashboard() {
+interface Props { searchParams: { level?: string } }
+
+export default async function Dashboard({ searchParams }: Props) {
   const { total, classified, failed, level4, sources, recent, levels,
           thisWeekHigh, lastWeekHigh, velocityPct, velocityTrend,
           pendingReview, lowConfidence, avgConfidence } = await getStats()
+
+  const activeLevel = searchParams.level
 
   const vel = VELOCITY_CONFIG[velocityTrend]
 
@@ -260,31 +264,51 @@ export default async function Dashboard() {
       <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
         {/* Recent items */}
         <div className="md:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm">
-          <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800">Recent Items</h2>
-            <Link href="/items" className="text-sm text-blue-600 hover:underline">View all →</Link>
+          <div className="px-4 sm:px-6 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+            <h2 className="font-semibold text-slate-800 shrink-0">Recent Items</h2>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {['', '4', '3', '2', '1'].map(l => (
+                <Link
+                  key={l}
+                  href={l ? `/?level=${l}` : '/'}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    activeLevel === l || (!activeLevel && !l)
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-white text-slate-500 border-gray-200 hover:border-slate-400'
+                  }`}>
+                  {l ? `L${l}` : 'All'}
+                </Link>
+              ))}
+            </div>
+            <Link href={activeLevel ? `/items?level=${activeLevel}` : '/items'} className="text-sm text-blue-600 hover:underline shrink-0">View all →</Link>
           </div>
           <div className="divide-y divide-gray-50">
-            {(recent || []).map((item: any) => {
-              const cls = item.classifications?.[0]
-              return (
-                <Link key={item.id} href={`/items/${item.id}`}
-                  className="flex items-start gap-3 px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors group">
-                  {cls?.impact_level && (
-                    <span className={`mt-0.5 shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${IMPACT_COLORS[cls.impact_level]}`}>
-                      L{cls.impact_level}
-                    </span>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate group-hover:text-blue-600">{item.title || 'Untitled'}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {(item.sources as any)?.name} · {new Date(item.detected_at).toLocaleDateString()}
-                    </p>
-                    {cls?.summary && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{cls.summary}</p>}
-                  </div>
-                </Link>
-              )
-            })}
+            {(recent || [])
+              .filter((item: any) => !activeLevel || item.classifications?.[0]?.impact_level === activeLevel)
+              .slice(0, 10)
+              .map((item: any) => {
+                const cls = item.classifications?.[0]
+                return (
+                  <Link key={item.id} href={`/items/${item.id}`}
+                    className="flex items-start gap-3 px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50 transition-colors group">
+                    {cls?.impact_level && (
+                      <span className={`mt-0.5 shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${IMPACT_COLORS[cls.impact_level]}`}>
+                        L{cls.impact_level}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate group-hover:text-blue-600">{item.title || 'Untitled'}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {(item.sources as any)?.name} · {new Date(item.detected_at).toLocaleDateString()}
+                      </p>
+                      {cls?.summary && <p className="text-xs text-slate-500 mt-1 line-clamp-2">{cls.summary}</p>}
+                    </div>
+                  </Link>
+                )
+              })}
+            {activeLevel && (recent || []).filter((item: any) => item.classifications?.[0]?.impact_level === activeLevel).length === 0 && (
+              <div className="px-6 py-8 text-center text-sm text-slate-400">No recent L{activeLevel} items</div>
+            )}
           </div>
         </div>
 

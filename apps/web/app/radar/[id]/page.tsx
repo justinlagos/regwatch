@@ -36,6 +36,13 @@ export default async function SignalDetail({ params }: Props) {
     .eq('workspace_id', '00000000-0000-0000-0000-000000000001')
     .maybeSingle()
 
+  // v2: Load signal matches
+  const { data: signalMatches } = await sb
+    .from('signal_matches')
+    .select('id, match_tier, confidence_score, matched_keyword, explanation, internal_controls(id, name, ref)')
+    .eq('item_id', params.id)
+    .order('confidence_score', { ascending: false })
+
   const isoClauses: { code: string; name: string }[]   = cls?.iso_clauses   || []
   const nistControls: { code: string; name: string }[] = cls?.nist_controls || []
 
@@ -138,6 +145,34 @@ export default async function SignalDetail({ params }: Props) {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* v2: Signal-to-Control Matches */}
+          {(signalMatches || []).length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Control Matches</h2>
+              <div className="space-y-2">
+                {(signalMatches || []).map((m: any) => (
+                  <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                        m.match_tier === 'direct' ? 'bg-emerald-50 text-emerald-700' :
+                        m.match_tier === 'context' ? 'bg-amber-50 text-amber-700' :
+                        'bg-gray-100 text-gray-500'
+                      }`}>{m.match_tier}</span>
+                      <div>
+                        <Link href={`/controls/${(m.internal_controls as any)?.id}`} className="text-sm font-medium text-slate-800 hover:text-blue-600">
+                          {(m.internal_controls as any)?.ref && <span className="font-mono text-slate-400 mr-1.5">{(m.internal_controls as any).ref}</span>}
+                          {(m.internal_controls as any)?.name}
+                        </Link>
+                        {m.matched_keyword && <p className="text-xs text-slate-400">matched: "{m.matched_keyword}"</p>}
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono text-slate-500">{m.confidence_score}%</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}

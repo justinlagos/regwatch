@@ -38,6 +38,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
+    // v2: Write evidence record on triage decision
+    await sb.from('evidence_records').insert({
+      workspace_id: '00000000-0000-0000-0000-000000000001',
+      action_type: 'signal_triaged',
+      entity_type: 'item',
+      entity_id: item_id,
+      actor: reviewed_by || 'operator',
+      metadata: { status, notes },
+    }).then(() => {}, console.error)
+
     return NextResponse.json({ success: true, review: data })
   } catch (err) {
     console.error('Review route error:', err)

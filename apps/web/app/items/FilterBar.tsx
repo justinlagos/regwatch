@@ -1,33 +1,40 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { IMPACT_LABELS } from '@/lib/supabase'
 import { useState, useTransition } from 'react'
 
 interface Source { id: string; name: string }
+interface WatchlistOption { id: string; name: string }
 interface Props {
   sources: Source[]
+  watchlists?: WatchlistOption[]
   currentLevel?: string
   currentSource?: string
   currentQ?: string
+  currentWatchlist?: string
   basePath?: string
 }
 
-export default function FilterBar({ sources, currentLevel, currentSource, currentQ, basePath = '/items' }: Props) {
+export default function FilterBar({ sources, watchlists, currentLevel, currentSource, currentQ, currentWatchlist, basePath = '/items' }: Props) {
   const router = useRouter()
   const [q, setQ] = useState(currentQ || '')
   const [, startTransition] = useTransition()
 
   function buildParams(overrides: Record<string, string | undefined>) {
     const p = new URLSearchParams()
-    const vals = { level: currentLevel, source: currentSource, q: q || undefined, ...overrides }
+    const vals = { level: currentLevel, source: currentSource, watchlist: currentWatchlist, q: q || undefined, ...overrides }
     Object.entries(vals).forEach(([k, v]) => { if (v) p.set(k, v) })
     return p.toString()
   }
 
   function handleSourceChange(e: React.ChangeEvent<HTMLSelectElement>) {
     router.push(`${basePath}?${buildParams({ source: e.target.value || undefined, page: undefined })}`)
+  }
+
+  function handleWatchlistChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    router.push(`${basePath}?${buildParams({ watchlist: e.target.value || undefined, page: undefined })}`)
   }
 
   function handleSearch(e: React.FormEvent) {
@@ -53,7 +60,7 @@ export default function FilterBar({ sources, currentLevel, currentSource, curren
           type="text"
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="Search items…"
+          placeholder="Search signals…"
           className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 text-slate-700 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
         />
         <button type="submit"
@@ -62,7 +69,7 @@ export default function FilterBar({ sources, currentLevel, currentSource, curren
         </button>
         <a href={exportUrl()}
           className="px-4 py-2 bg-white border border-gray-300 text-slate-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap">
-          ↓ Export CSV
+          Export CSV
         </a>
       </form>
 
@@ -92,6 +99,23 @@ export default function FilterBar({ sources, currentLevel, currentSource, curren
             <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
+
+        {/* Watchlist filter — only shown when watchlists prop is provided */}
+        {watchlists && watchlists.length > 0 && (
+          <>
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Watchlist:</span>
+            <select
+              className="text-xs border border-gray-300 rounded-lg px-2 py-1 text-slate-600 bg-white"
+              defaultValue={currentWatchlist || ''}
+              onChange={handleWatchlistChange}>
+              <option value="">All</option>
+              {watchlists.map((w) => (
+                <option key={w.id} value={w.id}>{w.name}</option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
     </div>
   )

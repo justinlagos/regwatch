@@ -1,5 +1,6 @@
 import { getServerClient } from '@/lib/supabase'
-import ReviewQueue from '../review/ReviewQueue'
+import { StatsCard } from '@/app/components/ui'
+import TriageQueue from './TriageQueue'
 
 export const revalidate = 30
 
@@ -27,6 +28,20 @@ async function getQueueItems() {
     .order('detected_at', { ascending: false })
     .limit(200)
 
+  // Load signal matches for all items in the queue
+  const { data: allMatches } = await sb
+    .from('signal_matches')
+    .select('item_id, match_tier, confidence_score, matched_keyword, internal_controls(id, name, ref)')
+    .in('item_id', ids)
+    .in('match_tier', ['direct', 'context'])
+    .order('confidence_score', { ascending: false })
+
+  const matchesByItem: Record<string, any[]> = {}
+  for (const m of (allMatches || [])) {
+    if (!matchesByItem[m.item_id]) matchesByItem[m.item_id] = []
+    matchesByItem[m.item_id].push(m)
+  }
+
   return (items || []).map((item: any) => {
     const cls = item.classifications?.[0]
     const rev = item.item_reviews?.[0]
@@ -44,6 +59,7 @@ async function getQueueItems() {
       reviewed_by:      rev?.reviewed_by || null,
       reviewed_at:      rev?.reviewed_at || null,
       has_override:     Boolean(cls?.override_level),
+      control_matches:  matchesByItem[item.id] || [],
     }
   })
 }
@@ -55,7 +71,6 @@ export default async function TriagePage() {
   const reviewed      = items.filter(i => i.review_status === 'reviewed').length
   const escalated     = items.filter(i => i.review_status === 'escalated').length
   const dismissed     = items.filter(i => i.review_status === 'dismissed').length
-  const lowConfidence = items.filter(i => !i.review_status && i.confidence_score < 65).length
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -64,22 +79,14 @@ export default async function TriagePage() {
         <p className="text-slate-500 text-sm mt-1">Decide what matters — review, escalate, or dismiss high-impact signals</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {[
-          { label: 'Pending',          value: pending,       color: 'text-red-600',    bg: 'bg-red-50 border-red-100' },
-          { label: 'Low Confidence',   value: lowConfidence, color: 'text-amber-600',  bg: 'bg-amber-50 border-amber-100' },
-          { label: 'Escalated',        value: escalated,     color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100' },
-          { label: 'Reviewed',         value: reviewed,      color: 'text-green-700',  bg: 'bg-green-50 border-green-100' },
-          { label: 'Dismissed',        value: dismissed,     color: 'text-gray-500',   bg: 'bg-gray-50 border-gray-100' },
-        ].map(stat => (
-          <div key={stat.label} className={`rounded-xl border p-4 ${stat.bg}`}>
-            <p className="text-xs text-gray-500 leading-tight">{stat.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${stat.color}`}>{stat.value}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatsCard label="Pending" value={pending} color="text-red-700" bg="bg-red-50" />
+        <StatsCard label="Escalated" value={escalated} color="text-orange-700" bg="bg-orange-50" />
+        <StatsCard label="Reviewed" value={reviewed} color="text-emerald-700" bg="bg-emerald-50" />
+        <StatsCard label="Dismissed" value={dismissed} color="text-gray-500" bg="bg-gray-50" />
       </div>
 
-      <ReviewQueue items={items} signalBasePath="/radar" />
+      <TriageQueue items={items} />
     </div>
   )
 }

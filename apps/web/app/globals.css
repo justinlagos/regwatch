@@ -1,3 +1,55 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-slate-800 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Calm, serious typography hierarchy */
+  h1 { @apply text-xl sm:text-2xl font-bold text-slate-900 tracking-tight; }
+  h2 { @apply text-base sm:text-lg font-semibold text-slate-800; }
+  h3 { @apply text-sm font-semibold text-slate-700; }
+}
+
+@layer components {
+  /* Page section card — the universal container */
+  .rw-card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+  }
+
+  /* Section header inside a card */
+  .rw-card-header {
+    @apply px-5 py-4 border-b border-gray-100 flex items-center justify-between;
+  }
+
+  /* Stats strip used across Command, Triage, Cases */
+  .rw-stat {
+    @apply rounded-xl border p-4;
+  }
+  .rw-stat-label {
+    @apply text-xs text-gray-500 leading-tight;
+  }
+  .rw-stat-value {
+    @apply text-2xl font-bold mt-1;
+  }
+
+  /* Table styling */
+  .rw-table {
+    @apply w-full text-sm;
+  }
+  .rw-table thead {
+    @apply bg-gray-50 text-xs text-gray-500 uppercase tracking-wider;
+  }
+  .rw-table th {
+    @apply px-5 py-3 text-left font-medium;
+  }
+  .rw-table td {
+    @apply px-5 py-3.5;
+  }
+  .rw-table tbody tr {
+    @apply border-t border-gray-100 hover:bg-gray-50 transition-colors;
+  }
+}

@@ -11,9 +11,10 @@ interface Props {
   currentLevel?: string
   currentSource?: string
   currentQ?: string
+  basePath?: string
 }
 
-export default function FilterBar({ sources, currentLevel, currentSource, currentQ }: Props) {
+export default function FilterBar({ sources, currentLevel, currentSource, currentQ, basePath = '/items' }: Props) {
   const router = useRouter()
   const [q, setQ] = useState(currentQ || '')
   const [, startTransition] = useTransition()
@@ -26,13 +27,13 @@ export default function FilterBar({ sources, currentLevel, currentSource, curren
   }
 
   function handleSourceChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    router.push(`/items?${buildParams({ source: e.target.value || undefined, page: undefined })}`)
+    router.push(`${basePath}?${buildParams({ source: e.target.value || undefined, page: undefined })}`)
   }
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     startTransition(() => {
-      router.push(`/items?${buildParams({ page: undefined })}`)
+      router.push(`${basePath}?${buildParams({ page: undefined })}`)
     })
   }
 
@@ -71,7 +72,7 @@ export default function FilterBar({ sources, currentLevel, currentSource, curren
         {['', '4', '3', '2', '1'].map(l => (
           <Link
             key={l}
-            href={`/items?${buildParams({ level: l || undefined, page: undefined })}`}
+            href={`${basePath}?${buildParams({ level: l || undefined, page: undefined })}`}
             className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
               currentLevel === l || (!currentLevel && !l)
                 ? 'bg-slate-800 text-white border-slate-800'

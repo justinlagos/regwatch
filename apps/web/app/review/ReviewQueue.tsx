@@ -44,7 +44,7 @@ function ConfidencePip({ score }: { score: number }) {
   )
 }
 
-export default function ReviewQueue({ items }: { items: QueueItem[] }) {
+export default function ReviewQueue({ items, signalBasePath = '/items' }: { items: QueueItem[]; signalBasePath?: string }) {
   const router = useRouter()
   const [filter, setFilter] = useState<'all' | 'pending' | 'low-confidence' | 'reviewed' | 'escalated' | 'dismissed'>('pending')
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -146,7 +146,7 @@ export default function ReviewQueue({ items }: { items: QueueItem[] }) {
                           </span>
                         )}
                       </div>
-                      <Link href={`/items/${item.id}`}
+                      <Link href={`${signalBasePath}/${item.id}`}
                         className="text-sm font-semibold text-slate-800 hover:text-blue-600 transition-colors leading-tight block">
                         {item.title || 'Untitled'}
                       </Link>
@@ -175,7 +175,7 @@ export default function ReviewQueue({ items }: { items: QueueItem[] }) {
                           className="flex items-center gap-1 px-2.5 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-xs font-medium transition-colors disabled:opacity-50">
                           {isLoading ? '…' : '×'} Dismiss
                         </button>
-                        <Link href={`/items/${item.id}`} className="ml-auto text-xs text-slate-400 hover:text-blue-600">
+                        <Link href={`${signalBasePath}/${item.id}`} className="ml-auto text-xs text-slate-400 hover:text-blue-600">
                           Full detail →
                         </Link>
                       </>
@@ -183,7 +183,7 @@ export default function ReviewQueue({ items }: { items: QueueItem[] }) {
                       <div className="flex items-center gap-3 w-full text-xs text-slate-400">
                         {item.reviewed_by && <span>by {item.reviewed_by}</span>}
                         {item.reviewed_at && <span>· {new Date(item.reviewed_at).toLocaleDateString('en-GB')}</span>}
-                        <Link href={`/items/${item.id}`} className="ml-auto hover:text-blue-600">Full detail →</Link>
+                        <Link href={`${signalBasePath}/${item.id}`} className="ml-auto hover:text-blue-600">Full detail →</Link>
                       </div>
                     )}
                   </div>

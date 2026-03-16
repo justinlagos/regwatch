@@ -39,9 +39,7 @@ export default function FilterBar({ sources, watchlists, currentLevel, currentSo
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
-    startTransition(() => {
-      router.push(`${basePath}?${buildParams({ page: undefined })}`)
-    })
+    startTransition(() => { router.push(`${basePath}?${buildParams({ page: undefined })}`) })
   }
 
   function exportUrl() {
@@ -53,66 +51,42 @@ export default function FilterBar({ sources, watchlists, currentLevel, currentSo
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {/* Search row */}
       <form onSubmit={handleSearch} className="flex gap-2">
-        <input
-          type="text"
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          placeholder="Search signals…"
-          className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2 text-slate-700 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
-        />
-        <button type="submit"
-          className="px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors">
-          Search
-        </button>
-        <a href={exportUrl()}
-          className="px-4 py-2 bg-white border border-gray-300 text-slate-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap">
-          Export CSV
-        </a>
+        <input type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="Search signals…" className="rw-input flex-1" />
+        <button type="submit" className="rw-btn-primary">Search</button>
+        <a href={exportUrl()} className="rw-btn-secondary whitespace-nowrap">Export CSV</a>
       </form>
 
       {/* Filters row */}
-      <div className="bg-white rounded-xl border border-gray-200 p-3 shadow-sm flex flex-wrap gap-2 items-center">
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Level:</span>
+      <div className="rw-card p-3.5 flex flex-wrap gap-2 items-center">
+        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#8b90a5', letterSpacing: '0.08em' }}>Level:</span>
         {['', '4', '3', '2', '1'].map(l => (
-          <Link
-            key={l}
-            href={`${basePath}?${buildParams({ level: l || undefined, page: undefined })}`}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+          <Link key={l} href={`${basePath}?${buildParams({ level: l || undefined, page: undefined })}`}
+            className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-150 ${
               currentLevel === l || (!currentLevel && !l)
-                ? 'bg-slate-800 text-white border-slate-800'
-                : 'bg-white text-slate-600 border-gray-300 hover:border-slate-400'
-            }`}>
+                ? 'bg-[#1a1d2e] text-white border-[#1a1d2e]'
+                : 'bg-white border-[#e5e7ee] hover:border-[#d1d5e0]'
+            }`} style={currentLevel === l || (!currentLevel && !l) ? {} : { color: '#3a3f56' }}>
             {l ? `L${l} — ${IMPACT_LABELS[l]}` : 'All'}
           </Link>
         ))}
-        <div className="w-px h-4 bg-gray-200 mx-1" />
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Source:</span>
-        <select
-          className="text-xs border border-gray-300 rounded-lg px-2 py-1 text-slate-600 bg-white"
-          defaultValue={currentSource || ''}
-          onChange={handleSourceChange}>
+
+        <div className="w-px h-5 mx-1" style={{ background: '#e5e7ee' }} />
+        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#8b90a5', letterSpacing: '0.08em' }}>Source:</span>
+        <select className="rw-input w-auto min-w-[140px] py-1.5 text-[12px]" defaultValue={currentSource || ''} onChange={handleSourceChange}>
           <option value="">All sources</option>
-          {sources.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
+          {sources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
 
-        {/* Watchlist filter — only shown when watchlists prop is provided */}
         {watchlists && watchlists.length > 0 && (
           <>
-            <div className="w-px h-4 bg-gray-200 mx-1" />
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Watchlist:</span>
-            <select
-              className="text-xs border border-gray-300 rounded-lg px-2 py-1 text-slate-600 bg-white"
-              defaultValue={currentWatchlist || ''}
-              onChange={handleWatchlistChange}>
+            <div className="w-px h-5 mx-1" style={{ background: '#e5e7ee' }} />
+            <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: '#8b90a5', letterSpacing: '0.08em' }}>Watchlist:</span>
+            <select className="rw-input w-auto min-w-[120px] py-1.5 text-[12px]" defaultValue={currentWatchlist || ''} onChange={handleWatchlistChange}>
               <option value="">All</option>
-              {watchlists.map((w) => (
-                <option key={w.id} value={w.id}>{w.name}</option>
-              ))}
+              {watchlists.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </>
         )}

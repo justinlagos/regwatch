@@ -143,7 +143,6 @@ export default function ReportsPage() {
   async function exportReport(format: 'pdf' | 'csv') {
     if (!report || !selected) return
 
-    // Log export event
     fetch('/api/reports', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -155,7 +154,6 @@ export default function ReportsPage() {
     if (format === 'csv') {
       downloadBlob(reportToCSV(report), `${safeName}.csv`, 'text/csv')
     } else {
-      // PDF via print dialog on rendered HTML
       const html = reportToHTML(report)
       const win = window.open('', '_blank')
       if (win) {
@@ -167,94 +165,83 @@ export default function ReportsPage() {
   }
 
   return (
-    <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">Reports</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Generate monthly monitoring summaries and compliance reports.</p>
+        <h1 className="rw-page-title">Reports</h1>
+        <p className="rw-page-subtitle">Generate monthly monitoring summaries and compliance reports.</p>
       </div>
 
       {/* Template cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {TEMPLATES.map(t => (
           <button key={t.key} onClick={() => { setSelected(t.key); setReport(null) }}
-            className={`text-left rounded-xl border p-4 transition-all ${
+            className={`text-left rw-card p-4 transition-all ${
               selected === t.key
-                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500/20'
-                : 'border-gray-200 bg-white hover:border-gray-300 shadow-sm'
+                ? 'ring-2 ring-blue-500 bg-blue-50/50'
+                : 'hover:shadow-sm'
             }`}>
-            <h3 className="text-sm font-semibold text-slate-800">{t.title}</h3>
-            <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{t.desc}</p>
+            <h3 className="text-[13px] font-semibold text-slate-800">{t.title}</h3>
+            <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">{t.desc}</p>
           </button>
         ))}
       </div>
 
       {/* Filters + Generate */}
       {selected && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div className="rw-card p-4">
           <div className="flex flex-wrap items-end gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Period Start</label>
-              <input type="date" value={start} onChange={e => setStart(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+              <label className="rw-label">Period Start</label>
+              <input type="date" value={start} onChange={e => setStart(e.target.value)} className="rw-input w-auto" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Period End</label>
-              <input type="date" value={end} onChange={e => setEnd(e.target.value)}
-                className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30" />
+              <label className="rw-label">Period End</label>
+              <input type="date" value={end} onChange={e => setEnd(e.target.value)} className="rw-input w-auto" />
             </div>
-            <button onClick={generate} disabled={loading}
-              className="px-4 py-1.5 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50">
+            <button onClick={generate} disabled={loading} className="rw-btn-primary">
               {loading ? 'Generating…' : 'Generate Report'}
             </button>
           </div>
-          {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+          {error && <p className="text-[12px] text-red-600 mt-2">{error}</p>}
         </div>
       )}
 
       {/* Report Preview */}
       {report && (
-        <div className="space-y-4">
-          {/* Export bar */}
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700">Preview</h2>
             <div className="flex gap-2">
-              <button onClick={() => exportReport('pdf')}
-                className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors">
-                Export PDF
-              </button>
-              <button onClick={() => exportReport('csv')}
-                className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-slate-50 text-slate-600 transition-colors">
-                Export CSV
-              </button>
+              <button onClick={() => exportReport('pdf')} className="rw-btn-secondary">Export PDF</button>
+              <button onClick={() => exportReport('csv')} className="rw-btn-secondary">Export CSV</button>
             </div>
           </div>
 
-          {/* Report content */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-6">
+          <div className="rw-card p-6 space-y-6">
             <div>
               <h1 className="text-lg font-bold text-slate-900">{report.title}</h1>
-              <p className="text-sm text-slate-500">{report.subtitle}</p>
+              <p className="text-[13px] text-slate-500">{report.subtitle}</p>
             </div>
 
             {report.sections.map((section, i) => (
               <div key={i}>
-                <h3 className="text-sm font-semibold text-slate-700 border-b border-gray-100 pb-1.5 mb-3">{section.heading}</h3>
-                {section.content && <p className="text-xs text-slate-600 leading-relaxed">{section.content}</p>}
+                <h3 className="text-[13px] font-semibold text-slate-700 border-b border-gray-100 pb-1.5 mb-3">{section.heading}</h3>
+                {section.content && <p className="text-[12px] text-slate-600 leading-relaxed">{section.content}</p>}
                 {section.table && (
                   <div className="overflow-x-auto mt-2">
-                    <table className="w-full text-xs">
+                    <table className="rw-table">
                       <thead>
-                        <tr className="border-b border-gray-200">
+                        <tr>
                           {section.table.headers.map((h, j) => (
-                            <th key={j} className="text-left px-3 py-2 text-slate-500 font-medium uppercase tracking-wider text-[10px]">{h}</th>
+                            <th key={j}>{h}</th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody>
                         {section.table.rows.map((row, j) => (
-                          <tr key={j} className="hover:bg-slate-50/50">
+                          <tr key={j}>
                             {row.map((cell, k) => (
-                              <td key={k} className="px-3 py-2 text-slate-600">{cell}</td>
+                              <td key={k}>{cell}</td>
                             ))}
                           </tr>
                         ))}
@@ -271,6 +258,6 @@ export default function ReportsPage() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   )
 }

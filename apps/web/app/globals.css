@@ -2,54 +2,98 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @layer base {
+  :root {
+    --surface-ground: #f8f9fb;
+    --surface-card: #ffffff;
+    --surface-overlay: rgba(15, 23, 42, 0.5);
+    --sidebar-bg: #0f172a;
+    --sidebar-text: #94a3b8;
+    --sidebar-text-active: #f1f5f9;
+    --sidebar-hover: rgba(148, 163, 184, 0.08);
+    --sidebar-accent: #3b82f6;
+    --sidebar-width: 220px;
+    --border-subtle: #e8eaed;
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  html { scroll-behavior: smooth; }
+
   body {
-    @apply text-slate-800 antialiased;
+    @apply antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #1e293b;
+    background: var(--surface-ground);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Calm, serious typography hierarchy */
-  h1 { @apply text-xl sm:text-2xl font-bold text-slate-900 tracking-tight; }
-  h2 { @apply text-base sm:text-lg font-semibold text-slate-800; }
-  h3 { @apply text-sm font-semibold text-slate-700; }
+  h1 { @apply text-lg font-bold text-slate-900 tracking-tight; }
+  h2 { @apply text-sm font-semibold text-slate-800; }
+  h3 { @apply text-xs font-semibold text-slate-700; }
+
+  code, .font-mono { font-family: 'JetBrains Mono', 'SF Mono', monospace; }
 }
 
 @layer components {
-  /* Page section card — the universal container */
+  /* Card */
   .rw-card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    box-shadow: var(--shadow-xs);
   }
-
-  /* Section header inside a card */
   .rw-card-header {
-    @apply px-5 py-4 border-b border-gray-100 flex items-center justify-between;
+    @apply px-4 py-3 flex items-center justify-between;
+    border-bottom: 1px solid var(--border-subtle);
   }
 
-  /* Stats strip used across Command, Triage, Cases */
+  /* Stats */
   .rw-stat {
-    @apply rounded-xl border p-4;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    @apply p-3.5;
   }
-  .rw-stat-label {
-    @apply text-xs text-gray-500 leading-tight;
-  }
-  .rw-stat-value {
-    @apply text-2xl font-bold mt-1;
-  }
+  .rw-stat-label { @apply text-[11px] font-medium text-slate-400 uppercase tracking-wide leading-none; }
+  .rw-stat-value { @apply text-xl font-bold mt-1.5 leading-none; }
 
-  /* Table styling */
-  .rw-table {
-    @apply w-full text-sm;
-  }
-  .rw-table thead {
-    @apply bg-gray-50 text-xs text-gray-500 uppercase tracking-wider;
-  }
-  .rw-table th {
-    @apply px-5 py-3 text-left font-medium;
-  }
-  .rw-table td {
-    @apply px-5 py-3.5;
-  }
-  .rw-table tbody tr {
-    @apply border-t border-gray-100 hover:bg-gray-50 transition-colors;
-  }
+  /* Table */
+  .rw-table { @apply w-full text-[13px]; }
+  .rw-table thead tr { border-bottom: 1px solid var(--border-subtle); }
+  .rw-table th { @apply px-4 py-2.5 text-left text-[10px] font-semibold text-slate-400 uppercase tracking-wider; }
+  .rw-table td { @apply px-4 py-2.5; }
+  .rw-table tbody tr { border-bottom: 1px solid #f3f4f6; @apply transition-colors; }
+  .rw-table tbody tr:hover { background: #fafbfc; }
+  .rw-table tbody tr:last-child { border-bottom: none; }
+
+  /* Buttons */
+  .rw-btn { @apply inline-flex items-center justify-center gap-1.5 font-medium rounded-md text-[12px] leading-none transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1; }
+  .rw-btn-primary { @apply rw-btn px-3 py-1.5 bg-slate-900 text-white hover:bg-slate-800 focus:ring-slate-400; }
+  .rw-btn-secondary { @apply rw-btn px-3 py-1.5 bg-white text-slate-600 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 focus:ring-slate-300; }
+  .rw-btn-ghost { @apply rw-btn px-2 py-1 text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:ring-slate-300; }
+
+  /* Inputs */
+  .rw-input { @apply w-full border border-gray-200 rounded-md px-3 py-1.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-colors; }
+  .rw-label { @apply block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1; }
+
+  /* Badge */
+  .rw-badge { @apply inline-flex items-center gap-1 rounded-full text-[10px] font-semibold px-2 py-0.5 leading-tight; }
+
+  /* Tabs */
+  .rw-tab { @apply px-3 py-1.5 rounded-md text-[12px] font-medium transition-colors cursor-pointer text-slate-500 hover:text-slate-700 hover:bg-slate-100; }
+  .rw-tab-active { @apply bg-slate-900 text-white hover:bg-slate-800; }
+
+  /* Page */
+  .rw-page { @apply px-6 py-6 max-w-[1200px]; }
+  .rw-page-title { @apply text-lg font-bold text-slate-900 tracking-tight; }
+  .rw-page-subtitle { @apply text-[13px] text-slate-400 mt-0.5; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 }

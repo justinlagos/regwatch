@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from 'react'
 
-// ─── Tab type ─────────────────────────────────────────────
 type Tab = 'notifications' | 'watchlists'
 
-// ─── Watchlist types ──────────────────────────────────────
 interface WatchlistTerm { id: string; term: string; match_type: string }
 interface Watchlist { id: string; name: string; description: string | null; watchlist_terms: WatchlistTerm[] }
 
-// ─── Notifications types ──────────────────────────────────
 interface Settings {
   notification_email: string
   slack_webhook_url: string
@@ -21,17 +18,16 @@ export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>('notifications')
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-5 max-w-3xl">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Settings</h1>
-        <p className="text-slate-500 text-sm mt-1">Workspace configuration</p>
+        <h1 className="rw-page-title">Settings</h1>
+        <p className="rw-page-subtitle">Workspace configuration</p>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
         {(['notifications', 'watchlists'] as Tab[]).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 text-sm font-medium py-2 px-4 rounded-md transition-colors capitalize ${
+            className={`flex-1 text-[12px] font-medium py-2 px-4 rounded-md transition-colors capitalize ${
               tab === t ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}>
             {t}
@@ -45,9 +41,6 @@ export default function SettingsPage() {
   )
 }
 
-// ═══════════════════════════════════════════════════════════
-// Notifications Tab (ported from v1)
-// ═══════════════════════════════════════════════════════════
 function NotificationsTab() {
   const [settings, setSettings] = useState<Settings>({ notification_email:'', slack_webhook_url:'', slack_notify_l4:true, slack_notify_l3:false })
   const [loading, setLoading] = useState(true)
@@ -67,41 +60,39 @@ function NotificationsTab() {
   if (loading) return <div className="space-y-4 animate-pulse">{[1,2,3].map(i=><div key={i} className="h-24 bg-gray-100 rounded-xl"/>)}</div>
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
+    <div className="space-y-4">
+      <div className="rw-card p-5 space-y-4">
         <div>
-          <h2 className="font-semibold text-slate-800">Email Notifications</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Weekly digest and L4 alerts are sent to this address</p>
+          <h2 className="text-[13px] font-semibold text-slate-800">Email Notifications</h2>
+          <p className="text-[11px] text-slate-400 mt-0.5">Weekly digest and L4 alerts are sent to this address</p>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">Notification Email</label>
+          <label className="rw-label">Notification Email</label>
           <input type="email" value={settings.notification_email}
             onChange={e=>setSettings(s=>({...s,notification_email:e.target.value}))}
-            placeholder="you@company.com"
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+            placeholder="you@company.com" className="rw-input" />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
+      <div className="rw-card p-5 space-y-4">
         <div>
-          <h2 className="font-semibold text-slate-800">Slack Integration</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Post alerts to a Slack channel via incoming webhook</p>
+          <h2 className="text-[13px] font-semibold text-slate-800">Slack Integration</h2>
+          <p className="text-[11px] text-slate-400 mt-0.5">Post alerts to a Slack channel via incoming webhook</p>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1.5">Webhook URL</label>
+          <label className="rw-label">Webhook URL</label>
           <input type="url" value={settings.slack_webhook_url}
             onChange={e=>setSettings(s=>({...s,slack_webhook_url:e.target.value}))}
-            placeholder="https://hooks.slack.com/services/…"
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+            placeholder="https://hooks.slack.com/services/…" className="rw-input" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <label className="flex items-center gap-3 cursor-pointer">
             <input type="checkbox" checked={settings.slack_notify_l4}
               onChange={e=>setSettings(s=>({...s,slack_notify_l4:e.target.checked}))}
               className="w-4 h-4 rounded border-gray-300 text-slate-800 focus:ring-slate-400" />
             <div>
-              <span className="text-sm font-medium text-slate-700">Notify on L4 — Critical</span>
-              <p className="text-xs text-slate-400">Send a Slack message for every new critical item</p>
+              <span className="text-[13px] font-medium text-slate-700">Notify on L4 — Critical</span>
+              <p className="text-[11px] text-slate-400">Send a Slack message for every new critical item</p>
             </div>
           </label>
           <label className="flex items-center gap-3 cursor-pointer">
@@ -109,27 +100,23 @@ function NotificationsTab() {
               onChange={e=>setSettings(s=>({...s,slack_notify_l3:e.target.checked}))}
               className="w-4 h-4 rounded border-gray-300 text-slate-800 focus:ring-slate-400" />
             <div>
-              <span className="text-sm font-medium text-slate-700">Notify on L3 — High</span>
-              <p className="text-xs text-slate-400">Send a Slack message for every new high-impact item</p>
+              <span className="text-[13px] font-medium text-slate-700">Notify on L3 — High</span>
+              <p className="text-[11px] text-slate-400">Send a Slack message for every new high-impact item</p>
             </div>
           </label>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <button onClick={save} disabled={saving}
-          className="px-6 py-2.5 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors">
+        <button onClick={save} disabled={saving} className="rw-btn-primary px-5 py-2">
           {saving ? 'Saving…' : 'Save Settings'}
         </button>
-        {saved && <span className="text-sm text-emerald-600 font-medium">Saved</span>}
+        {saved && <span className="text-[12px] text-emerald-600 font-medium">Saved</span>}
       </div>
     </div>
   )
 }
 
-// ═══════════════════════════════════════════════════════════
-// Watchlists Tab — CRUD for watchlists + terms
-// ═══════════════════════════════════════════════════════════
 function WatchlistsTab() {
   const [watchlists, setWatchlists] = useState<Watchlist[]>([])
   const [loading, setLoading] = useState(true)
@@ -187,57 +174,52 @@ function WatchlistsTab() {
   if (loading) return <div className="space-y-4 animate-pulse">{[1,2,3].map(i=><div key={i} className="h-20 bg-gray-100 rounded-xl"/>)}</div>
 
   return (
-    <div className="space-y-6">
-      {/* Create form */}
-      <form onSubmit={createWatchlist} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
-        <h2 className="font-semibold text-slate-800">Create Watchlist</h2>
+    <div className="space-y-4">
+      <form onSubmit={createWatchlist} className="rw-card p-5 space-y-4">
+        <h2 className="text-[13px] font-semibold text-slate-800">Create Watchlist</h2>
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Name</label>
+            <label className="rw-label">Name</label>
             <input type="text" value={newName} onChange={e => setNewName(e.target.value)}
-              placeholder="e.g. CBN Directives"
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+              placeholder="e.g. CBN Directives" className="rw-input" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Description</label>
+            <label className="rw-label">Description</label>
             <input type="text" value={newDesc} onChange={e => setNewDesc(e.target.value)}
-              placeholder="What this watchlist tracks"
-              className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+              placeholder="What this watchlist tracks" className="rw-input" />
           </div>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Initial Terms (comma-separated)</label>
+          <label className="rw-label">Initial Terms (comma-separated)</label>
           <input type="text" value={newTerms} onChange={e => setNewTerms(e.target.value)}
-            placeholder="CBN, central bank, monetary policy"
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+            placeholder="CBN, central bank, monetary policy" className="rw-input" />
         </div>
-        <button type="submit" disabled={creating || !newName.trim()}
-          className="px-5 py-2 bg-slate-800 text-white text-sm font-medium rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors">
+        <button type="submit" disabled={creating || !newName.trim()} className="rw-btn-primary">
           {creating ? 'Creating…' : 'Create Watchlist'}
         </button>
       </form>
 
       {watchlists.length === 0 && (
-        <div className="text-center py-12 text-gray-400 text-sm">No watchlists yet. Create one above.</div>
+        <div className="text-center py-12 text-slate-400 text-[13px]">No watchlists yet. Create one above.</div>
       )}
 
       {watchlists.map(wl => (
-        <div key={wl.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div key={wl.id} className="rw-card overflow-hidden">
+          <div className="rw-card-header">
             <div>
-              <h3 className="font-semibold text-slate-800">{wl.name}</h3>
-              {wl.description && <p className="text-xs text-slate-400 mt-0.5">{wl.description}</p>}
+              <h3 className="text-[13px] font-semibold text-slate-800">{wl.name}</h3>
+              {wl.description && <p className="text-[11px] text-slate-400 mt-0.5">{wl.description}</p>}
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">{wl.watchlist_terms.length} terms</span>
+              <span className="text-[11px] text-slate-400">{wl.watchlist_terms.length} terms</span>
               <button onClick={() => deleteWatchlist(wl.id)}
-                className="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button>
+                className="text-[11px] text-red-500 hover:text-red-700 font-medium">Delete</button>
             </div>
           </div>
-          <div className="px-6 py-3">
-            <div className="flex flex-wrap gap-2">
+          <div className="px-4 py-3">
+            <div className="flex flex-wrap gap-1.5">
               {wl.watchlist_terms.map(t => (
-                <span key={t.id} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                <span key={t.id} className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 text-[11px] font-medium px-2 py-0.5 rounded-full">
                   {t.term}
                   <button onClick={() => deleteTerm(t.id)} className="text-slate-400 hover:text-red-500 ml-0.5">&times;</button>
                 </span>
@@ -247,13 +229,13 @@ function WatchlistsTab() {
                   <input type="text" value={termInput} onChange={e => setTermInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTerm(wl.id) } if (e.key === 'Escape') setAddingTermTo(null) }}
                     autoFocus placeholder="New term…"
-                    className="text-xs border border-gray-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-slate-400" />
-                  <button onClick={() => addTerm(wl.id)} className="text-xs text-blue-600 font-medium">Add</button>
-                  <button onClick={() => setAddingTermTo(null)} className="text-xs text-slate-400">Cancel</button>
+                    className="rw-input w-28 text-[11px] py-0.5 px-2" />
+                  <button onClick={() => addTerm(wl.id)} className="text-[11px] text-blue-600 font-medium">Add</button>
+                  <button onClick={() => setAddingTermTo(null)} className="text-[11px] text-slate-400">Cancel</button>
                 </span>
               ) : (
                 <button onClick={() => { setAddingTermTo(wl.id); setTermInput('') }}
-                  className="text-xs text-blue-600 hover:text-blue-800 font-medium px-2 py-1">+ Add term</button>
+                  className="text-[11px] text-blue-600 hover:text-blue-800 font-medium px-2 py-0.5">+ Add term</button>
               )}
             </div>
           </div>

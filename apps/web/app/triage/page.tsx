@@ -1,5 +1,5 @@
 import { getServerClient } from '@/lib/supabase'
-import { StatsCard } from '@/app/components/ui'
+import { StatsCard, SectionHeader } from '@/app/components/ui'
 import TriageQueue from './TriageQueue'
 
 export const revalidate = 30
@@ -28,7 +28,6 @@ async function getQueueItems() {
     .order('detected_at', { ascending: false })
     .limit(200)
 
-  // Load signal matches for all items in the queue
   const { data: allMatches } = await sb
     .from('signal_matches')
     .select('item_id, match_tier, confidence_score, matched_keyword, internal_controls(id, name, ref)')
@@ -73,17 +72,14 @@ export default async function TriagePage() {
   const dismissed     = items.filter(i => i.review_status === 'dismissed').length
 
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Triage</h1>
-        <p className="text-slate-500 text-sm mt-1">Decide what matters — review, escalate, or dismiss high-impact signals</p>
-      </div>
+    <div className="space-y-5">
+      <SectionHeader title="Triage" subtitle="Decide what matters — review, escalate, or dismiss high-impact signals" />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatsCard label="Pending" value={pending} color="text-red-700" bg="bg-red-50" />
         <StatsCard label="Escalated" value={escalated} color="text-orange-700" bg="bg-orange-50" />
         <StatsCard label="Reviewed" value={reviewed} color="text-emerald-700" bg="bg-emerald-50" />
-        <StatsCard label="Dismissed" value={dismissed} color="text-gray-500" bg="bg-gray-50" />
+        <StatsCard label="Dismissed" value={dismissed} color="text-slate-500" bg="bg-slate-50" />
       </div>
 
       <TriageQueue items={items} />
